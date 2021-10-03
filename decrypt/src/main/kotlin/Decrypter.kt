@@ -1,12 +1,18 @@
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.io.ByteArrayOutputStream
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PrivateKey
+import java.security.Security
 import java.security.spec.RSAPrivateKeySpec
 import javax.crypto.Cipher
 
 
 object Decrypter {
+    init {
+        Security.addProvider(BouncyCastleProvider())
+    }
+
     fun getKey(): PrivateKey {
         val key1Stream = javaClass.getResourceAsStream("mod_pri_key.txt")
         val key2Stream = javaClass.getResourceAsStream("exp_pri_key.txt")
