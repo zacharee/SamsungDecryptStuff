@@ -60,7 +60,8 @@ object CSCChanger {
                     val read = readString() ?: ""
 
                     if (read.isNotBlank()) {
-                        lines.add(read.replace("\r", "").replace("\n", ""))
+                        val split = read.split("\r").flatMap { it.split("\n") }.filterNot { it.isBlank() }
+                        lines.addAll(split)
                     }
 
                     if (
