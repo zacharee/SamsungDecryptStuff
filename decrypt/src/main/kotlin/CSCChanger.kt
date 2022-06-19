@@ -3,7 +3,14 @@ import jssc.SerialPortList
 import kotlinx.coroutines.*
 
 object CSCChanger {
-    const val TARGET_CSC = "XAA"
+    private const val TARGET_CSC = "XAA"
+    private val commands = arrayOf(
+        "AT+SWATD=0",
+        "AT+ACTIVATE=0,0,0",
+        "AT+SWATD=1",
+        "AT+PRECONFG=2,${TARGET_CSC}",
+        "AT+CFUN=1,1"
+    )
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -14,7 +21,30 @@ object CSCChanger {
         }
     }
 
-    suspend fun SerialPort.writeAtCommand(command: String, timeoutMs: Long = 6000L): List<String> {
+    private suspend fun sendCommands() {
+        val port = findPort()
+        val opened = port.openPort()
+
+        println("Found port ${port.portName}")
+
+        if (!opened) {
+            println("Failed to open")
+        } else {
+            port.setDTR(true)
+            port.setRTS(true)
+
+            commands.forEach {
+                print("${port.writeAtCommand(it)}\n")
+            }
+
+            // Has to run twice for some reason
+            commands.forEach {
+                print("${port.writeAtCommand(it)}\n")
+            }
+        }
+    }
+
+    private suspend fun SerialPort.writeAtCommand(command: String, timeoutMs: Long = 6000L): String {
         val startTime = System.currentTimeMillis()
         println("Command: $command")
 
@@ -30,10 +60,15 @@ object CSCChanger {
                     val read = readString() ?: ""
 
                     if (read.isNotBlank()) {
-                        lines.add(read)
+                        lines.add(read.replace("\r", "").replace("\n", ""))
                     }
 
-                    if (read.contains("\nOK") || read.contains("\nERROR") || read.contains(":OK") || read.contains("\r\nOK\r\n")) {
+                    if (
+                        read.contains("\nOK") ||
+                        read.contains("\nERROR") ||
+                        read.contains(":OK") ||
+                        read.contains("\r\nOK\r\n")
+                    ) {
                         break
                     }
 
@@ -47,31 +82,11 @@ object CSCChanger {
                 purgePort(SerialPort.PURGE_TXCLEAR)
             }
 
-            lines
+            lines.joinToString("\n")
         }
     }
 
-    suspend fun sendCommands() {
-        val port = findPort()
-        val opened = port.openPort()
-
-        println("Found port ${port.portName}")
-
-        if (!opened) {
-            println("Failed to open")
-        } else {
-            port.setDTR(true)
-            port.setRTS(true)
-            println(port.writeAtCommand("AT+DEVCONINFO"))
-            println(port.writeAtCommand("AT+SWATD=0"))
-            println(port.writeAtCommand("AT+ACTIVATE=0,0,0"))
-            println(port.writeAtCommand("AT+SWATD=1"))
-            println(port.writeAtCommand("AT+PRECONFG=2,${TARGET_CSC}"))
-            println(port.writeAtCommand("AT+CFUN=1,1"))
-        }
-    }
-
-    suspend fun findPort(): SerialPort {
+    private suspend fun findPort(): SerialPort {
         return SerialPortList.getPortNames().map { SerialPort(it) }.first {
             val p = try {
                 it.openPort()
@@ -91,7 +106,7 @@ object CSCChanger {
                     println("Couldn't set DTR")
                 }
 
-                it.writeAtCommand("AT+DEVCONINFO").any { line -> line.contains("OK" )}.also { _ -> it.closePort() }
+                it.writeAtCommand("AT").contains("OK").also { _ -> it.closePort() }
             }
         }
     }
