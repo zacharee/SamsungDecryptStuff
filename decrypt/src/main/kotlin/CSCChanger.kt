@@ -22,7 +22,10 @@ object CSCChanger {
     }
 
     private suspend fun sendCommands() {
-        val port = findPort()
+        val port = findPort() ?: run {
+            println("No suitable port found! Dial *#0808# in the Samsung dialer and make sure \"RNDIS + DM + MODEM + ADB\" is selected.")
+            return
+        }
         val opened = port.openPort()
 
         println("Found port ${port.portName}")
@@ -87,8 +90,13 @@ object CSCChanger {
         }
     }
 
-    private suspend fun findPort(): SerialPort {
-        return SerialPortList.getPortNames().map { SerialPort(it) }.first {
+    private suspend fun findPort(): SerialPort? {
+        return SerialPortList.getPortNames()
+            .filterNot { it.contains("Bluetooth", true) }
+            .sortedBy {
+                if (it.contains("modem", true)) 0 else 1
+            }
+            .map { SerialPort(it.also { println(it) }) }.firstOrNull {
             val p = try {
                 it.openPort()
             } catch (e: Exception) {
