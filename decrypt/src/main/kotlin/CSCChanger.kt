@@ -1,27 +1,52 @@
 import jssc.SerialPort
 import jssc.SerialPortList
 import kotlinx.coroutines.*
+import net.sourceforge.argparse4j.ArgumentParsers
+import net.sourceforge.argparse4j.inf.ArgumentParserException
 
 object CSCChanger {
-    private const val TARGET_CSC = "XAA"
-    private val commands = arrayOf(
-        "AT+SWATD=0",
-        "AT+ACTIVATE=0,0,0",
-        "AT+SWATD=1",
-        "AT+PRECONFG=2,${TARGET_CSC}",
-        "AT+CFUN=1,1"
-    )
+//    private const val TARGET_CSC = "XAA"
+    private val commands = { csc: String ->
+        arrayOf(
+            "AT+SWATD=0",
+            "AT+ACTIVATE=0,0,0",
+            "AT+SWATD=1",
+            "AT+PRECONFG=2,${csc}",
+            "AT+CFUN=1,1"
+        )
+    }
 
     @JvmStatic
     fun main(args: Array<String>) {
+        val parser = ArgumentParsers.newFor("CSCChanger").build()
+            .defaultHelp(true)
+            .description("Change the CSC on your Samsung device.")
+
+        parser.addArgument("csc")
+            .nargs(1)
+            .type(String::class.java)
+            .help("The CSC to change to (e.g., XAA).")
+
+        val ns = try {
+            parser.parseArgs(args)
+        } catch (e: ArgumentParserException) {
+            parser.handleError(e)
+            return
+        }
+
         runBlocking {
             launch {
-                sendCommands()
+                sendCommands(ns.getList<String>("csc").first().uppercase())
             }
         }
     }
 
-    private suspend fun sendCommands() {
+    private suspend fun sendCommands(csc: String) {
+        if (!(csc.length == 3 && csc.contains(Regex("^[A-Z]+\$")))) {
+            println("Provided CSC ($csc) is invalid!")
+            return
+        }
+
         val port = findPort() ?: run {
             println("No suitable port found! Dial *#0808# in the Samsung dialer and make sure \"RNDIS + DM + MODEM + ADB\" is selected.")
             return
@@ -36,15 +61,17 @@ object CSCChanger {
             port.setDTR(true)
             port.setRTS(true)
 
-            commands.forEach {
+            commands(csc).forEach {
                 print("${port.writeAtCommand(it)}\n")
             }
 
             // Has to run twice for some reason
-            commands.forEach {
+            commands(csc).forEach {
                 print("${port.writeAtCommand(it)}\n")
             }
         }
+
+        println("Done! If your device is showing a FactoryMode prompt, the change worked and you should reboot. Otherwise, run this program again.")
     }
 
     private suspend fun SerialPort.writeAtCommand(command: String, timeoutMs: Long = 6000L): String {
