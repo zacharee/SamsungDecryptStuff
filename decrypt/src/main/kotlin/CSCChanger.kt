@@ -3,16 +3,23 @@ import jssc.SerialPortList
 import kotlinx.coroutines.*
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.ArgumentParserException
+import java.util.Scanner
 
 object CSCChanger {
 //    private const val TARGET_CSC = "XAA"
+    private val setup = arrayOf(
+        "AT+KSTRINGB=0,3",
+        "AT+DUMPCTRL=1,0",
+        "AT+DEBUGLVC=0,5",
+        "AT+SWATD=0",
+        "AT+ACTIVATE=0,0,0",
+        "AT+SWATD=1",
+        "AT+DEBUGLVC=0,5",
+    )
     private val commands = { csc: String ->
         arrayOf(
-            "AT+SWATD=0",
-            "AT+ACTIVATE=0,0,0",
-            "AT+SWATD=1",
-            "AT+PRECONFG=2,${csc}",
-            "AT+CFUN=1,1"
+            "AT+PRECONFG=2,$csc",
+            "AT+PRECONFG=1,0"
         )
     }
 
@@ -42,6 +49,8 @@ object CSCChanger {
     }
 
     private suspend fun sendCommands(csc: String) {
+        val scanner = Scanner(System.`in`)
+
         if (!(csc.length == 3 && csc.contains(Regex("^[A-Z]+\$")))) {
             println("Provided CSC ($csc) is invalid!")
             return
@@ -55,23 +64,30 @@ object CSCChanger {
 
         println("Found port ${port.portName}")
 
+        println("IMPORTANT: Open the Samsung Phone app and dial *#0*#. Once the debug screen appears, press Enter here to continue.")
+        scanner.nextLine()
+
         if (!opened) {
             println("Failed to open")
         } else {
             port.setDTR(true)
             port.setRTS(true)
 
+            setup.forEach {
+                print("${port.writeAtCommand(it)}\n")
+            }
+
             commands(csc).forEach {
                 print("${port.writeAtCommand(it)}\n")
             }
 
             // Has to run twice for some reason
-            commands(csc).forEach {
-                print("${port.writeAtCommand(it)}\n")
-            }
+//            commands(csc).forEach {
+//                print("${port.writeAtCommand(it)}\n")
+//            }
         }
 
-        println("Done! If your device is showing a FactoryMode prompt, the change worked and you should reboot. Otherwise, run this program again.")
+        println("Done! Please reboot your phone.")
     }
 
     private suspend fun SerialPort.writeAtCommand(command: String, timeoutMs: Long = 6000L): String {
