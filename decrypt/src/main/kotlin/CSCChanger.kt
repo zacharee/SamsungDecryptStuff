@@ -64,6 +64,7 @@ object CSCChanger {
 
         println("Found port ${port.portName}")
 
+        println()
         println("IMPORTANT: Open the Samsung Phone app and dial *#0*#. Once the debug screen appears, press Enter here to continue.")
         scanner.nextLine()
 
