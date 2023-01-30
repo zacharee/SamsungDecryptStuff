@@ -6,7 +6,7 @@ buildscript {
         maven(url = "https://kotlin.bintray.com/kotlinx/")
     }
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.21")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.22")
     }
 }
 

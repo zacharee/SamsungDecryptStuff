@@ -6,7 +6,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException
 import java.util.Scanner
 
 object CSCChanger {
-//    private const val TARGET_CSC = "XAA"
+    //    private const val TARGET_CSC = "XAA"
     private val setup = arrayOf(
         "AT+KSTRINGB=0,3",
         "AT+DUMPCTRL=1,0",
@@ -29,13 +29,17 @@ object CSCChanger {
             .defaultHelp(true)
             .description("Change the CSC on your Samsung device.")
 
-        parser.addArgument("csc")
+        parser.addArgument("--csc")
             .nargs(1)
+            .required(false)
             .type(String::class.java)
             .help("The CSC to change to (e.g., XAA).")
 
-        val ns = try {
-            parser.parseArgs(args)
+        val csc = try {
+            parser.parseArgs(args).getString("csc") ?: run {
+                print("Enter CSC (e.g., XAA): ")
+                Scanner(System.`in`).nextLine()
+            }
         } catch (e: ArgumentParserException) {
             parser.handleError(e)
             return
@@ -43,7 +47,7 @@ object CSCChanger {
 
         runBlocking {
             launch {
-                sendCommands(ns.getList<String>("csc").first().uppercase())
+                sendCommands(csc.uppercase())
             }
         }
     }
@@ -81,11 +85,6 @@ object CSCChanger {
             commands(csc).forEach {
                 print("${port.writeAtCommand(it)}\n")
             }
-
-            // Has to run twice for some reason
-//            commands(csc).forEach {
-//                print("${port.writeAtCommand(it)}\n")
-//            }
         }
 
         println("Done! Please reboot your phone.")
@@ -140,27 +139,30 @@ object CSCChanger {
             .sortedBy {
                 if (it.contains("modem", true)) 0 else 1
             }
-            .map { SerialPort(it.also { println(it) }) }.firstOrNull {
-            val p = try {
-                it.openPort()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                false
+            .also {
+                println("Found possible ports: ${it.joinToString(", ")}")
             }
-            println(it.portName)
-            if (!p) {
-                println("couldn't open")
-                false
-            } else {
-                if (!it.setRTS(true)) {
-                    println("Couldn't set RTS")
+            .map { SerialPort(it) }.firstOrNull {
+                val p = try {
+                    it.openPort()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    false
                 }
-                if (!it.setDTR(true)) {
-                    println("Couldn't set DTR")
-                }
+                println("Checking ${it.portName}")
+                if (!p) {
+                    println("Couldn't open ${it.portName}")
+                    false
+                } else {
+                    if (!it.setRTS(true)) {
+                        println("Couldn't set RTS for ${it.portName}")
+                    }
+                    if (!it.setDTR(true)) {
+                        println("Couldn't set DTR for ${it.portName}")
+                    }
 
-                it.writeAtCommand("AT").contains("OK").also { _ -> it.closePort() }
+                    it.writeAtCommand("AT").contains("OK").also { _ -> it.closePort() }
+                }
             }
-        }
     }
 }
