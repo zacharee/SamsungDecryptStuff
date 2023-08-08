@@ -5,7 +5,7 @@ plugins {
 kotlin {
     dependencies {
         implementation("org.bouncycastle:bcprov-jdk15on:1.70")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
         implementation("io.github.java-native:jssc:2.9.4")
         implementation("net.sourceforge.argparse4j:argparse4j:0.9.0")
     }
