@@ -36,7 +36,7 @@ object CSCChanger {
             .help("The CSC to change to (e.g., XAA).")
 
         val csc = try {
-            parser.parseArgs(args).getString("csc") ?: run {
+            parser.parseArgs(args).getList<String>("csc").firstOrNull() ?: run {
                 print("Enter CSC (e.g., XAA): ")
                 Scanner(System.`in`).nextLine()
             }
