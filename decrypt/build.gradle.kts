@@ -1,17 +1,27 @@
+import org.gradle.jvm.tasks.Jar
+
 plugins {
-    kotlin("jvm")
+    alias(libs.plugins.kotlin.jvm)
+}
+
+dependencies {
+    implementation(libs.argparse4j)
+    implementation(libs.bcprov)
+    implementation(libs.coroutines.core)
+    implementation(libs.jssc)
 }
 
 kotlin {
-    dependencies {
-        implementation("org.bouncycastle:bcprov-jdk15on:1.70")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-        implementation("io.github.java-native:jssc:2.9.4")
-        implementation("net.sourceforge.argparse4j:argparse4j:0.9.0")
+    jvmToolchain(17)
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
-val fatJar = task("makeCscChanger", type = org.gradle.jvm.tasks.Jar::class) {
+tasks.create<Jar>("makeCscChanger") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set("CSCChanger")
     manifest {
