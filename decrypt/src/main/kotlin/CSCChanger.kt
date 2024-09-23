@@ -47,7 +47,11 @@ object CSCChanger {
 
         runBlocking {
             launch {
-                sendCommands(csc.uppercase())
+                try {
+                    sendCommands(csc.uppercase())
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -98,12 +102,19 @@ object CSCChanger {
 
         return coroutineScope {
             val write = async(Dispatchers.IO) { writeString("$command\r\n\n") }
-            val writeResult = withTimeoutOrNull(6000) { write.await() }
+            val writeResult = withTimeoutOrNull(timeoutMs) { write.await() }
             val lines = ArrayList<String>()
+
+            println("Write result $writeResult")
 
             if (writeResult == true) {
                 while (true) {
-                    val read = readString() ?: ""
+                    val read = withTimeoutOrNull(timeoutMs) { readBytes()?.decodeToString() ?: "" }
+
+                    if (read == null) {
+                        println("Timed out")
+                        break
+                    }
 
                     if (read.isNotBlank()) {
                         val split = read.split("\r").flatMap { it.split("\n") }.filterNot { it.isBlank() }
@@ -124,10 +135,10 @@ object CSCChanger {
                         break
                     }
                 }
-            } else {
-                purgePort(SerialPort.PURGE_TXABORT)
-                purgePort(SerialPort.PURGE_TXCLEAR)
             }
+
+            purgePort(SerialPort.PURGE_TXABORT)
+            purgePort(SerialPort.PURGE_TXCLEAR)
 
             lines.joinToString("\n")
         }
@@ -161,7 +172,10 @@ object CSCChanger {
                         println("Couldn't set DTR for ${it.portName}")
                     }
 
-                    it.writeAtCommand("AT").contains("OK").also { _ -> it.closePort() }
+                    it.writeAtCommand("AT?").run {
+                        println(this)
+                        contains("OK").also { _ -> it.closePort() }
+                    }
                 }
             }
     }
