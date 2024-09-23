@@ -66,6 +66,7 @@ object CSCChanger {
 
         val port = findPort() ?: run {
             println("No suitable port found! Dial *#0808# in the Samsung dialer and make sure \"RNDIS + DM + MODEM + ADB\" is selected.")
+            println("On tablets, you can open the Calculator app and enter (+30012012732+ to open DRParser, where you can enter the same secret codes as on phones.")
             return
         }
         val opened = port.openPort()
@@ -74,6 +75,7 @@ object CSCChanger {
 
         println()
         println("IMPORTANT: Open the Samsung Phone app and dial *#0*#. Once the debug screen appears, press Enter here to continue.")
+        println("If you're using a tablet, open the Calculator app, enter (+30012012732+ to open DRParser, and then enter *#0*#.")
         scanner.nextLine()
 
         if (!opened) {
