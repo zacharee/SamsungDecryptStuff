@@ -1,12 +1,14 @@
 import jssc.SerialPort
 import jssc.SerialPortList
 import kotlinx.coroutines.*
-import net.sourceforge.argparse4j.ArgumentParsers
-import net.sourceforge.argparse4j.inf.ArgumentParserException
+import org.apache.commons.cli.DefaultParser
+import org.apache.commons.cli.Option
+import org.apache.commons.cli.Options
+import org.apache.commons.cli.help.HelpFormatter
 import java.util.Scanner
+import kotlin.time.Duration.Companion.milliseconds
 
 object CSCChanger {
-    //    private const val TARGET_CSC = "XAA"
     private val setup = arrayOf(
         "AT+KSTRINGB=0,3",
         "AT+DUMPCTRL=1,0",
@@ -25,30 +27,66 @@ object CSCChanger {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val parser = ArgumentParsers.newFor("CSCChanger").build()
-            .defaultHelp(true)
-            .description("Change the CSC on your Samsung device.")
+        val options = Options()
+        options.addOption(
+            Option.builder()
+                .longOpt("ports")
+                .desc("List available serial ports.")
+                .get(),
+        )
+        options.addOption(
+            Option.builder()
+                .option("h")
+                .longOpt("help")
+                .desc("Print this message")
+                .get(),
+        )
+        options.addOption(
+            Option.builder()
+                .option("c")
+                .longOpt("csc")
+                .desc("Specify the target CSC.")
+                .hasArg()
+                .numberOfArgs(1)
+                .type(String::class.java)
+                .get()
+        )
+        options.addOption(
+            Option.builder()
+                .option("p")
+                .longOpt("port")
+                .desc("Specify the serial port name to use. If unspecified, will loop through available ports to find a modem.")
+                .hasArg()
+                .numberOfArgs(1)
+                .type(String::class.java)
+                .get(),
+        )
 
-        parser.addArgument("--csc")
-            .nargs(1)
-            .required(false)
-            .type(String::class.java)
-            .help("The CSC to change to (e.g., XAA).")
+        val parsedArgs = DefaultParser.builder().get().parse(options, args, true)
 
-        val csc = try {
-            parser.parseArgs(args).getList<String>("csc")?.firstOrNull() ?: run {
-                print("Enter CSC (e.g., XAA): ")
-                Scanner(System.`in`).nextLine()
-            }
-        } catch (e: ArgumentParserException) {
-            parser.handleError(e)
+        if (parsedArgs.hasOption("help")) {
+            val formatter = HelpFormatter.builder()
+                .get()
+            formatter.printHelp("java -jar CSCChanger.jar", "", options, "", true)
             return
         }
+
+        if (parsedArgs.hasOption("ports")) {
+            getPortNames()
+            return
+        }
+
+        val csc = parsedArgs.getOptionValue("csc") ?: run {
+            print("Enter CSC (e.g., XAA): ")
+            Scanner(System.`in`).nextLine()
+        }
+
+        val port = parsedArgs.getOptionValue("port")
 
         runBlocking {
             launch {
                 try {
-                    sendCommands(csc.uppercase())
+                    sendCommands(csc = csc.uppercase(), portName = port)
                 } catch (e: Throwable) {
                     e.printStackTrace()
                 }
@@ -56,7 +94,7 @@ object CSCChanger {
         }
     }
 
-    private suspend fun sendCommands(csc: String) {
+    private suspend fun sendCommands(csc: String, portName: String? = null) {
         val scanner = Scanner(System.`in`)
 
         if (!(csc.length == 3 && csc.contains(Regex("^[A-Z]+\$")))) {
@@ -64,14 +102,14 @@ object CSCChanger {
             return
         }
 
-        val port = findPort() ?: run {
+        val port = portName?.let { SerialPort(it) } ?: findPort() ?: run {
             println("No suitable port found! Dial *#0808# in the Samsung dialer and make sure \"RNDIS + DM + MODEM + ADB\" is selected.")
             println("On tablets, you can open the Calculator app and enter (+30012012732+ to open DRParser, where you can enter the same secret codes as on phones.")
             return
         }
         val opened = port.openPort()
 
-        println("Found port ${port.portName}")
+        println("Using port ${port.portName}")
 
         println()
         println("IMPORTANT: Open the Samsung Phone app and dial *#0*#. Once the debug screen appears, press Enter here to continue.")
@@ -104,14 +142,14 @@ object CSCChanger {
 
         return coroutineScope {
             val write = async(Dispatchers.IO) { writeString("$command\r\n\n") }
-            val writeResult = withTimeoutOrNull(timeoutMs) { write.await() }
+            val writeResult = withTimeoutOrNull(timeoutMs.milliseconds) { write.await() }
             val lines = ArrayList<String>()
 
             println("Write result $writeResult")
 
             if (writeResult == true) {
                 while (true) {
-                    val read = withTimeoutOrNull(timeoutMs) { readBytes()?.decodeToString() ?: "" }
+                    val read = withTimeoutOrNull(timeoutMs.milliseconds) { readBytes()?.decodeToString() ?: "" }
 
                     if (read == null) {
                         println("Timed out")
@@ -146,15 +184,19 @@ object CSCChanger {
         }
     }
 
-    private suspend fun findPort(): SerialPort? {
+    private fun getPortNames(): List<String> {
         return SerialPortList.getPortNames()
             .filterNot { it.contains("Bluetooth", true) }
             .sortedBy {
                 if (it.contains("modem", true)) 0 else 1
             }
             .also {
-                println("Found possible ports: ${it.joinToString(", ")}")
+                println("Found possible ports:\n${it.joinToString("\n")}")
             }
+    }
+
+    private suspend fun findPort(): SerialPort? {
+        return getPortNames()
             .map { SerialPort(it) }.firstOrNull {
                 val p = try {
                     it.openPort()

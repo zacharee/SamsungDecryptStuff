@@ -1,12 +1,12 @@
 [versions]
-argparse4j = "0.9.0"
-bcprov = "1.77"
-coroutines = "1.8.0"
-jssc = "2.9.6"
-kotlin = "1.9.22"
+commons-cli = "1.11.0"
+bcprov = "1.84"
+coroutines = "1.11.0"
+jssc = "2.10.2"
+kotlin = "2.4.0"
 
 [libraries]
-argparse4j = { module = "net.sourceforge.argparse4j:argparse4j", version.ref = "argparse4j" }
+commons-cli = { module = "commons-cli:commons-cli", version.ref = "commons-cli" }
 bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bcprov" }
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 jssc = { module = "io.github.java-native:jssc", version.ref = "jssc" }

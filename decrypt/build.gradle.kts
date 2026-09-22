@@ -1,11 +1,12 @@
 import org.gradle.jvm.tasks.Jar
+import org.gradle.kotlin.dsl.register
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
 dependencies {
-    implementation(libs.argparse4j)
+    implementation(libs.commons.cli)
     implementation(libs.bcprov)
     implementation(libs.coroutines.core)
     implementation(libs.jssc)
@@ -21,7 +22,11 @@ java {
     }
 }
 
-tasks.create<Jar>("makeCscChanger") {
+//    from(configurations.compileClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+tasks.register<Jar>(
+    "makeCscChanger"
+) //    from(configurations.compileClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+{
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set("CSCChanger")
     manifest {
