@@ -34,7 +34,7 @@ object Decrypter {
 
     fun decrypt(bArr: ByteArray, privateKey: PrivateKey?): ByteArray? {
         return try {
-            val instance = Cipher.getInstance("RSA", "BC")
+            val instance = Cipher.getInstance("RSA/ECB/NoPadding", "BC")
             instance.init(2, privateKey)
             var i = 64
             var length = bArr.size.toLong()

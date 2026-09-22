@@ -17,8 +17,7 @@ object Main {
     }
 
     private fun convertIStoByte(inputStream: InputStream): ByteArray {
-        val i: Int
-        i = try {
+        val i = try {
             inputStream.available()
         } catch (e: IOException) {
             e.printStackTrace()
